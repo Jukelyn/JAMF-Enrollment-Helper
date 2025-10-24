@@ -36,7 +36,7 @@ class DataModel: ObservableObject {
     @Published var allDepartments: [String] = []
 
     init() {
-        print("DataModel initialized!")
+        //        print("DataModel initialized!")
         parseBuildingDepartmentData()
     }
 
@@ -44,12 +44,12 @@ class DataModel: ObservableObject {
         var buildingSet: Set<String> = []
         var departmentSet: Set<String> = []
 
-        print(
-            Bundle.main.path(
-                forResource: "buildings_departments",
-                ofType: "txt"
-            ) ?? "Not found"
-        )
+        //        print(
+        //            Bundle.main.path(
+        //                forResource: "buildings_departments",
+        //                ofType: "txt"
+        //            ) ?? "Not found"
+        //        )
 
         guard
             let filePath = Bundle.main.url(
@@ -103,7 +103,7 @@ class DataModel: ObservableObject {
     }
 }
 
-// MARK: - 3. Acknowledgment Page
+// MARK: - 3. Content View
 
 enum AppState: Int {
     case acknowledge, nameInput, departmentBuildingInput, saving
@@ -195,6 +195,7 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - 4. Acknowledgment Page
     struct AcknowledgePage: View {
         @Binding var currentState: AppState
 
@@ -211,7 +212,6 @@ struct ContentView: View {
                     .lineLimit(2)
                 Button("Next") {
                     currentState = .nameInput
-                    print("Next button tapped")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.white)
@@ -227,7 +227,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 4. Name Input Page
+    // MARK: - 5. Name Input Page
     struct NameInputPage: View {
         @Binding var currentState: AppState
         @Binding var firstName: String
@@ -241,22 +241,12 @@ struct ContentView: View {
         var body: some View {
             ZStack {
                 VStack(spacing: 10) {
-                    HStack {
-                        Text("First Name:")
-                            .font(.headline)
-                        TextField("First name", text: $firstName)
-                            //                        .textFieldStyle(CustomTextFieldStyle())
-                            .focused($focusedField, equals: .first)
+                    Form {
+                        Section {
+                            TextField("First name:", text: $firstName)
+                            TextField("Last name:", text: $lastName)
+                        }
                     }
-
-                    HStack {
-                        Text("Last Name:")
-                            .font(.headline)
-                        TextField("Last name", text: $lastName)
-                            //                        .textFieldStyle(CustomTextFieldStyle())
-                            .focused($focusedField, equals: .last)
-                    }
-
                     Button("Next") {
                         if !firstName.isEmpty && !lastName.isEmpty {
                             currentState = .departmentBuildingInput
@@ -266,10 +256,10 @@ struct ContentView: View {
                     .tint(.white)
                     .foregroundColor(Constants.reynoldsRed)
                     .controlSize(.large)
-                    //                .buttonStyle(.borderedProminent)
                     .disabled(firstName.isEmpty || lastName.isEmpty)
                 }
-                //            .padding(40)
+                .font(.system(size: 16))
+                .frame(width: 300)
                 .onAppear {
                     focusedField = .first
                 }
@@ -284,12 +274,11 @@ struct ContentView: View {
             .padding(40)
             .background(Constants.reynoldsRed)
             .cornerRadius(10)
-            .shadow(radius: 10)
             .padding(.horizontal, 20)
         }
     }
 
-    // MARK: - 5. Dept + Buidling Input Page
+    // MARK: - 6. Dept + Buidling Input Page
     struct DepartmentBuildingPage: View {
         @Binding var currentState: AppState
         let firstName: String
@@ -348,15 +337,23 @@ struct ContentView: View {
                         currentState = .saving
                     }
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(.white)
+                .foregroundColor(Constants.reynoldsRed)
+                .controlSize(.large)
                 .disabled(
                     selectedDepartment.isEmpty || selectedBuilding.isEmpty
                 )
             }
             .padding(40)
+            .background(Constants.reynoldsRed)
+            .cornerRadius(10)
+            .shadow(radius: 10)
+            .padding(.horizontal, 20)
         }
     }
 
-    // MARK: - 6. Saving Page
+    // MARK: - 7. Saving Page
     struct SavingPage: View {
         let firstName: String
         let lastName: String
@@ -457,7 +454,7 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - 7. Custom Styles
+    // MARK: - 8. Custom Styles
 
     struct CustomButtonStyle: ButtonStyle {
         var isDisabled: Bool = false
