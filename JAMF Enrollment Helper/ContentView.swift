@@ -215,8 +215,8 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.white)
-                .foregroundColor(Constants.reynoldsRed)
                 .controlSize(.large)
+                .foregroundColor(Constants.reynoldsRed)
             }
             .padding(40)
             .background(Constants.reynoldsRed)
@@ -377,6 +377,19 @@ struct ContentView: View {
                         .scaleEffect(1.5)
                         .tint(Color(red: 0, green: 0.318, blue: 0.635))  // #0051A2
                 }
+
+                if !isSubmitting {
+                    Button(
+                        "Close Application",
+                        action: {
+                            NSApplication.shared.terminate(nil)
+                        }
+                    )
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
+                    .controlSize(.large)
+                    .foregroundColor(Constants.reynoldsRed)
+                }
             }
             .padding(40)
             .task {
@@ -420,9 +433,15 @@ struct ContentView: View {
             process.standardOutput = Pipe()
             process.standardError = Pipe()
 
+            var success = false
+
             do {
                 try process.run()
                 process.waitUntilExit()
+
+                if process.terminationStatus == 0 {
+                    success = true
+                }
 
                 let outputData = process.standardOutput as? Pipe
                 let errorData = process.standardError as? Pipe
@@ -449,21 +468,16 @@ struct ContentView: View {
 
             // This must be done on the main thread
             await MainActor.run {
-                NSApplication.shared.terminate(nil)
+                self.isSubmitting = false
+
+                if success {
+                    self.statusMessage =
+                        "✅ Success!\n\nInformation updated.\nYou may now close this window."
+                } else {
+                    self.statusMessage =
+                        "❌ Error!\n\nFailed to update information. Please try again or contact support."
+                }
             }
-        }
-    }
-
-    // MARK: - 8. Custom Styles
-
-    struct CustomButtonStyle: ButtonStyle {
-        var isDisabled: Bool = false
-
-        func makeBody(configuration: Configuration) -> some View {
-            configuration.label
-                .background(isDisabled ? Color.gray.opacity(0.6) : Color.white)
-                .tint(.white)
-                .foregroundColor(Constants.reynoldsRed)
         }
     }
 }
