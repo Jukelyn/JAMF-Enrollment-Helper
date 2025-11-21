@@ -549,7 +549,7 @@ struct ContentView: View {
             let testCommandString =
                 "echo \"\(password)\" | /usr/bin/sudo -S /usr/bin/touch /var/tmp/recon-test & /bin/sleep 3"
 
-            let response = ShellCommand.runPipedSudo(testCommandString)
+            let response = ShellCommand.runPipedSudo(commandString)
 
             await MainActor.run {
                 self.isFinished = true
