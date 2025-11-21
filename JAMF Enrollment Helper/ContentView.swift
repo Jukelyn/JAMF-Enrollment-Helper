@@ -115,6 +115,7 @@ struct ContentView: View {
     @State private var lastName: String = ""
     @State private var selectedDepartment: String = ""
     @State private var selectedBuilding: String = ""
+    @State private var passwordInput: String = ""
     @StateObject private var dataModel = DataModel()
 
     init() {
@@ -174,10 +175,12 @@ struct ContentView: View {
                         )
                     case .saving:
                         SavingPage(
+                            currentState: $currentState,
                             firstName: firstName,
                             lastName: lastName,
                             department: selectedDepartment,
-                            building: selectedBuilding
+                            building: selectedBuilding,
+                            passwordInput: $passwordInput
                         )
                     }
                 }
@@ -247,16 +250,28 @@ struct ContentView: View {
                             TextField("Last name:", text: $lastName)
                         }
                     }
-                    Button("Next") {
-                        if !firstName.isEmpty && !lastName.isEmpty {
-                            currentState = .departmentBuildingInput
+                    HStack {
+                        Button("Back") {
+                            currentState = .acknowledge
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundColor(Constants.reynoldsRed)
+                        .controlSize(.large)
+
+                        Spacer().frame(maxWidth: 20)
+
+                        Button("Next") {
+                            if !firstName.isEmpty && !lastName.isEmpty {
+                                currentState = .departmentBuildingInput
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundColor(Constants.reynoldsRed)
+                        .controlSize(.large)
+                        .disabled(firstName.isEmpty || lastName.isEmpty)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white)
-                    .foregroundColor(Constants.reynoldsRed)
-                    .controlSize(.large)
-                    .disabled(firstName.isEmpty || lastName.isEmpty)
                 }
                 .font(.system(size: 16))
                 .frame(width: 300)
@@ -331,146 +346,214 @@ struct ContentView: View {
                     .pickerStyle(.menu)
                 }
 
-                Button("Submit") {
-                    if !selectedDepartment.isEmpty && !selectedBuilding.isEmpty
-                    {
-                        currentState = .saving
+                HStack {
+                    Button("Back") {
+                        currentState = .nameInput
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
+                    .foregroundColor(Constants.reynoldsRed)
+                    .controlSize(.large)
+
+                    Spacer().frame(maxWidth: 20)
+
+                    Button("Submit") {
+                        if !selectedDepartment.isEmpty
+                            && !selectedBuilding.isEmpty
+                        {
+                            currentState = .saving
+                        }
+                    }.disabled(
+                        selectedDepartment.isEmpty || selectedBuilding.isEmpty
+                    )
+
+                    .buttonStyle(.borderedProminent)
+                    .tint(.white)
+                    .foregroundColor(Constants.reynoldsRed)
+                    .controlSize(.large)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.white)
-                .foregroundColor(Constants.reynoldsRed)
-                .controlSize(.large)
-                .disabled(
-                    selectedDepartment.isEmpty || selectedBuilding.isEmpty
-                )
             }
             .padding(40)
             .background(Constants.reynoldsRed)
             .cornerRadius(10)
             .shadow(radius: 10)
             .padding(.horizontal, 20)
+            .frame(maxWidth: 400)
         }
     }
 
     // MARK: - 7. Saving Page
     struct SavingPage: View {
+        @Binding var currentState: AppState
         let firstName: String
         let lastName: String
         let department: String
         let building: String
+        @Binding var passwordInput: String
 
-        @State private var isSubmitting = true
-        @State private var statusMessage =
-            "Submitting Info...\nPlease wait.\nPlease ensure that you click \"Allow\" on any pop-up notifications associated with \"jamf\" or \"terminal.\""
+        @State private var isSubmitting = false
+        @State private var isFinished = false
+        @State private var statusMessage = ""
+        @FocusState private var focusedField: Field?
+
+        enum Field {
+            case password
+        }
+
+        let submittingMessage =
+            "Submitting Info...\n\nPlease wait.\n\nPlease ensure that you click \"Allow\" on any pop-up notifications associated with \"jamf\"."
 
         var body: some View {
             VStack(spacing: 30) {
-                Text(statusMessage)
-                    .font(.title.bold())
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-
-                if isSubmitting {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .scaleEffect(1.5)
-                        .tint(Color(red: 0, green: 0.318, blue: 0.635))  // #0051A2
-                }
 
                 if !isSubmitting {
-                    Button(
-                        "Close Application",
-                        action: {
-                            NSApplication.shared.terminate(nil)
+                    Text("Does this information look correct?")
+                        .font(.title2.bold())
+                        .foregroundColor(.white)
+
+                    Group {
+                        HStack {
+                            Text("Name:").fontWeight(.bold)
+                            Spacer()
+                            Text("\(firstName) \(lastName)")
                         }
+                        HStack {
+                            Text("Department:").fontWeight(.bold)
+                            Spacer()
+                            Text(department)
+                        }
+                        HStack {
+                            Text("Building:").fontWeight(.bold)
+                            Spacer()
+                            Text(building)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: 400)
+                    .foregroundColor(.white)
+                    .font(.body)
+
+                    SecureField(
+                        "Enter Admin Password Here",
+                        text: $passwordInput
                     )
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white)
-                    .controlSize(.large)
-                    .foregroundColor(Constants.reynoldsRed)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 250)
+                    .focused($focusedField, equals: .password)
+
+                    HStack {
+                        Button("Back") {
+                            currentState = .departmentBuildingInput
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .foregroundColor(Constants.reynoldsRed)
+                        .controlSize(.large)
+
+                        Spacer().frame(maxWidth: 20)
+
+                        Button("Confirm & Submit") {
+                            if !passwordInput.isEmpty {
+                                isSubmitting = true
+                                statusMessage = submittingMessage
+
+                                Task {
+                                    await runJamfRecon(
+                                        firstName: firstName,
+                                        lastName: lastName,
+                                        building: building,
+                                        selectedDepartment: department,
+                                        password: passwordInput
+                                    )
+                                }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .controlSize(.large)
+                        .foregroundColor(Constants.reynoldsRed)
+                        .disabled(passwordInput.isEmpty)
+                    }
+                    .onAppear {
+                        focusedField = .password
+                    }
+                    .frame(maxWidth: 450)
+
+                } else {  // Submission/Result View
+                    Text(statusMessage)
+                        .font(.title.bold())
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+
+                    if !isFinished {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .scaleEffect(1.5)
+                            .tint(Color(red: 0, green: 0.318, blue: 0.635))
+                    }
+
+                    if isFinished {
+                        Button(
+                            "Close Application",
+                            action: {
+                                NSApplication.shared.terminate(nil)
+                            }
+                        )
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white)
+                        .controlSize(.large)
+                        .foregroundColor(Constants.reynoldsRed)
+                    }
                 }
             }
             .padding(40)
-            .task {
-                await runJamfRecon(
-                    firstName: firstName,
-                    lastName: lastName,
-                    building: building,
-                    selectedDepartment: department
-                )
-            }
+            .background(Constants.reynoldsRed)
+            .cornerRadius(10)
+            .shadow(radius: 10)
+            .padding(.horizontal, 20)
+            .frame(width: 700)
         }
 
         private func runJamfRecon(
             firstName: String,
             lastName: String,
             building: String,
-            selectedDepartment: String
+            selectedDepartment: String,
+            password: String
         ) async {
-
             let departmentGroup: String
             if selectedDepartment == "Other COS Department" {
-                // Use a generic department group if "Other" is selected
                 departmentGroup = "COS-Other"
             } else {
-                // Prepend the standard prefix (e.g., "COS-") to the selected department
-                departmentGroup = "COS-\(selectedDepartment)"
+                let sanitizedDepartment =
+                    selectedDepartment
+                    .replacingOccurrences(of: " ", with: "-")
+                    .uppercased()
+                    .replacingOccurrences(
+                        of: "DEAN'S-OFFICE",
+                        with: "DEANS-OFFICE"
+                    )
+                departmentGroup = "COS-\(sanitizedDepartment)"
             }
 
-            // Run JAMF Command
-            let command = "/usr/local/bin/jamf"
-            let arguments = [
+            let reconArguments = [
                 "recon",
-                "--realname", "\(firstName) \(lastName)",
-                "--building", "NCSU-\(building)",
-                "--department", departmentGroup,
-            ]
+                "--realname", "\"\(firstName) \(lastName)\"",
+                "--building", "\"NCSU-\(building)\"",
+                "--department", "\"\(departmentGroup)\"",
+            ].joined(separator: " ")
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: command)
-            process.arguments = arguments
-            process.standardOutput = Pipe()
-            process.standardError = Pipe()
+            let commandString =
+                "echo \"\(password)\" | /usr/bin/sudo -S /usr/local/bin/jamf \(reconArguments)"
 
-            var success = false
+            let testCommandString =
+                "echo \"\(password)\" | /usr/bin/sudo -S /usr/bin/touch /var/tmp/recon-test & /bin/sleep 3"
 
-            do {
-                try process.run()
-                process.waitUntilExit()
+            let response = ShellCommand.runPipedSudo(testCommandString)
 
-                if process.terminationStatus == 0 {
-                    success = true
-                }
-
-                let outputData = process.standardOutput as? Pipe
-                let errorData = process.standardError as? Pipe
-
-                if let output = outputData?.fileHandleForReading
-                    .readDataToEndOfFile(),
-                    let outputString = String(data: output, encoding: .utf8),
-                    !outputString.isEmpty
-                {
-                    print("JAMF stdout: \(outputString)")
-                }
-
-                if let error = errorData?.fileHandleForReading
-                    .readDataToEndOfFile(),
-                    let errorString = String(data: error, encoding: .utf8),
-                    !errorString.isEmpty
-                {
-                    print("JAMF stderr: \(errorString)")
-                }
-
-            } catch {
-                print("Failed to run jamf recon: \(error)")
-            }
-
-            // This must be done on the main thread
             await MainActor.run {
-                self.isSubmitting = false
-
-                if success {
+                self.isFinished = true
+                if response.exitCode == 0 {
                     self.statusMessage =
                         "✅ Success!\n\nInformation updated.\nYou may now close this window."
                 } else {
