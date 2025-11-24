@@ -396,12 +396,14 @@ struct ContentView: View {
         @State private var statusMessage = ""
         @FocusState private var focusedField: Field?
 
+        @State private var submissionSuccessful = false
+
         enum Field {
             case password
         }
 
         let submittingMessage =
-            "Submitting Info...\n\nPlease wait.\n\nPlease ensure that you click \"Allow\" on any pop-up notifications associated with \"jamf\"."
+            "Submitting Info...\n\nPlease wait.\n\nPlease ensure that you click \"Allow\" on any pop-up notifications associated with \"JAMF\"."
 
         var body: some View {
             VStack(spacing: 30) {
@@ -434,7 +436,7 @@ struct ContentView: View {
                     .font(.body)
 
                     SecureField(
-                        "Enter Admin Password Here",
+                        "Enter Your Password Here",
                         text: $passwordInput
                     )
                     .textFieldStyle(.roundedBorder)
@@ -493,16 +495,36 @@ struct ContentView: View {
                     }
 
                     if isFinished {
-                        Button(
-                            "Close Application",
-                            action: {
-                                NSApplication.shared.terminate(nil)
+                        HStack(spacing: 20) {  // Wrap buttons in an HStack
+
+                            // Show Back button only on error
+                            if !submissionSuccessful {
+                                Button("Back") {
+                                    // Reset state variables to go back to the confirmation view
+                                    isSubmitting = false
+                                    isFinished = false
+                                    statusMessage = ""
+                                    passwordInput = ""
+                                    // Return to previous state if desired, but here we go back to the confirmation view
+                                    // currentState = .departmentBuildingInput
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.white)
+                                .foregroundColor(Constants.reynoldsRed)
+                                .controlSize(.large)
                             }
-                        )
-                        .buttonStyle(.borderedProminent)
-                        .tint(.white)
-                        .controlSize(.large)
-                        .foregroundColor(Constants.reynoldsRed)
+
+                            Button(
+                                "Close Application",
+                                action: {
+                                    NSApplication.shared.terminate(nil)
+                                }
+                            )
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white)
+                            .controlSize(.large)
+                            .foregroundColor(Constants.reynoldsRed)
+                        }
                     }
                 }
             }
@@ -554,11 +576,13 @@ struct ContentView: View {
             await MainActor.run {
                 self.isFinished = true
                 if response.exitCode == 0 {
+                    self.submissionSuccessful = true
                     self.statusMessage =
-                        "✅ Success!\n\nInformation updated.\nYou may now close this window."
+                        "✅ Success!\n\nInformation updated.\nYou may now close this window.\n\nIf you need help, please contact support.\n\nhelp@sciences.ncsu.edu."
                 } else {
+                    self.submissionSuccessful = false
                     self.statusMessage =
-                        "❌ Error!\n\nFailed to update information. Please try again or contact support."
+                        "❌ Error!\n\nFailed to update information. Please try again or contact support.\n\nhelp@sciences.ncsu.edu."
                 }
             }
         }
